@@ -21,7 +21,6 @@ def send_file(ip):
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     
-    # Manejo del envío del archivo
     try:
         file_handler.send_file_to_device(ip, file)  # Llama a la función para enviar el archivo
         return jsonify({'message': 'File sent successfully'})
