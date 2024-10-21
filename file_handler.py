@@ -7,28 +7,33 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Crear la carpeta de uploads si no e
 def detect_devices():
     """Detecta dispositivos en la red local utilizando UDP."""
     devices = []
-    broadcast_address = '<broadcast>'  # Dirección de broadcast
-    port = 5005  # Puerto a utilizar para el broadcast
+    broadcast_address = '<broadcast>'
+    port = 5005
 
     # Crear socket UDP
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Permitir broadcast
-    sock.settimeout(2)  # Tiempo de espera para las respuestas
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.settimeout(2)
 
     # Enviar un mensaje de broadcast para detectar dispositivos
     message = "¿Hay alguien ahí?"
+    print("Enviando mensaje de broadcast...")
     sock.sendto(message, (broadcast_address, port))
+
+    time.sleep(1)  # Esperar un segundo antes de empezar a recibir respuestas
 
     try:
         while True:
-            # Escuchar respuestas de dispositivos
-            data, addr = sock.recvfrom(1024)  # Tamaño del buffer de recepción
-            devices.append({'name': data.decode(), 'ip': addr[0]})  # Añadir dispositivo detectado
+            data, addr = sock.recvfrom(1024)
+            print(f"Dispositivo detectado: {data.decode()} en {addr[0]}")
+            devices.append({'name': data.decode(), 'ip': addr[0]})
     except socket.timeout:
-        pass  # Fin de la detección
+        print("Tiempo de espera alcanzado. Finalizando detección.")
 
     sock.close()
-    return devices  # Retornar la lista de dispositivos detectados
+    print(f"Dispositivos encontrados: {devices}")
+    return devices
+
 
 def send_file_to_device(ip, file):
     """Envía un archivo a un dispositivo específico utilizando TCP."""
