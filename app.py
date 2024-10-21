@@ -13,6 +13,7 @@ connected_users = {}
 uploaded_files = []  # Lista para almacenar archivos subidos
 
 UPLOAD_FOLDER = 'uploads'  # Carpeta donde se guardan los archivos
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Crear la carpeta si no existe
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -38,16 +39,20 @@ def handle_disconnect():
 def handle_file_upload():
     file = request.files['file']
     user_id = request.form['user_id']
+
+    # Guardar el archivo
     filename = save_file(file)
-    uploaded_files.append(filename)  # Agregar archivo a la lista de archivos subidos
+    if filename:
+        uploaded_files.append(filename)  # Agregar archivo a la lista de archivos subidos
 
-    # Emitir evento a todos los usuarios sobre la carga del archivo
-    socketio.emit('file_uploaded', {'filename': filename, 'user_id': user_id})
+        # Emitir evento a todos los usuarios sobre la carga del archivo
+        socketio.emit('file_uploaded', {'filename': filename, 'user_id': user_id})
 
-    # Emitir la lista de archivos a todos los usuarios
-    socketio.emit('update_file_list', uploaded_files)
-    
-    return {'status': 'success', 'filename': filename}
+        # Emitir la lista de archivos a todos los usuarios
+        socketio.emit('update_file_list', uploaded_files)
+
+        return {'status': 'success', 'filename': filename}
+    return {'status': 'error', 'message': 'Failed to save file'}
 
 # Función para manejar la eliminación de archivos
 def handle_file_deletion(filename):
