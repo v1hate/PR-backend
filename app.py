@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # Importa CORS
 import file_handler
 import socket
 
 app = Flask(__name__)
+CORS(app)  # Activa CORS en todas las rutas
 UPLOAD_FOLDER = 'uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
