@@ -6,7 +6,7 @@ from file_handler import save_file  # Importa la función save_file
 import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"*": {"origins": "https://prvicmaga.netlify.app/"}})
 socketio = SocketIO(app)
 
 connected_users = {}
