@@ -1,63 +1,55 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import os
-from file_handler import save_file, list_files, notify_users
+from file_handler import save_file, get_uploaded_files, get_pending_requests, accept_file
 
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Permitir CORS
 
-# Mantener la lista de conexiones activas
-connections = {}
-pending_requests = {}  # Solicitudes pendientes de archivos
-
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
-    filepath = save_file(file)  # Usar función para guardar el archivo
-
-    # Notificar a todos los usuarios conectados que hay un archivo disponible
-    notify_users(connections, file.filename)
-    
-    return jsonify({'message': 'File uploaded successfully'}), 200
-
-@app.route('/files', methods=['GET'])
-def get_files():
-    """Devolver la lista de archivos subidos."""
-    return list_files()
-
+# Ruta para conectar un usuario
 @app.route('/connect', methods=['POST'])
 def connect_user():
-    """Conectar un usuario al servidor."""
-    user_id = request.json.get('user_id')
-    if user_id:
-        connections[user_id] = {'ip': request.remote_addr, 'pending_files': []}  # Guardar IP y lista de archivos pendientes
-        return jsonify({'message': 'User connected successfully'}), 200
-    return jsonify({'error': 'No user ID provided'}), 400
+    data = request.get_json()
+    user_id = data.get('user_id')
 
-@app.route('/accept', methods=['POST'])
-def accept_file():
-    """Aceptar recibir un archivo."""
-    user_id = request.json.get('user_id')
-    if user_id in pending_requests:
-        filename = pending_requests[user_id]
-        # Aquí deberías implementar la lógica para enviar el archivo al usuario
-        del pending_requests[user_id]  # Eliminar la solicitud después de aceptarla
-        return jsonify({'message': f'File {filename} will be sent to {user_id}'}), 200
-    return jsonify({'error': 'No pending requests for this user'}), 400
+    # Aquí podrías añadir lógica adicional para gestionar conexiones
+    return jsonify({'message': f'Usuario {user_id} conectado exitosamente.'})
 
+# Ruta para subir un archivo
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    user_id = request.form['user_id']
+    if 'file' not in request.files:
+        return jsonify({'message': 'No file part'}), 400
+
+    file = request.files['file']
+    save_file(file, user_id)
+
+    return jsonify({'message': f'Archivo {file.filename} subido exitosamente.'})
+
+# Ruta para obtener archivos subidos
+@app.route('/files', methods=['GET'])
+def files():
+    uploaded_files = get_uploaded_files()
+    return jsonify(uploaded_files)
+
+# Ruta para obtener solicitudes pendientes
 @app.route('/pending-requests', methods=['GET'])
-def get_pending_requests():
-    """Obtener las solicitudes pendientes para el usuario actual."""
+def pending_requests():
     user_id = request.args.get('user_id')
-    requests = {filename: user_id for user, filename in pending_requests.items() if user == user_id}
+    requests = get_pending_requests(user_id)
     return jsonify(requests)
 
+# Ruta para aceptar un archivo
+@app.route('/accept', methods=['POST'])
+def accept():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    filename = data.get('filename')
+
+    if accept_file(filename, user_id):
+        return jsonify({'message': f'Archivo {filename} aceptado.'})
+    else:
+        return jsonify({'message': 'Error al aceptar el archivo.'}), 400
+
 if __name__ == '__main__':
-    os.makedirs('uploads', exist_ok=True)  # Crear la carpeta si no existe
     app.run(host='0.0.0.0', port=5000)

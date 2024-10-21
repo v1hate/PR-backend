@@ -1,24 +1,31 @@
 import os
-from flask import jsonify
+from flask import request, jsonify
 
-UPLOAD_FOLDER = 'uploads/'
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def save_file(file):
-    """Guardar el archivo en la carpeta de uploads."""
-    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(file_path)  # Guardar el archivo
-    return file_path
+# Almacena las solicitudes de envío de archivos
+pending_requests = {}
 
-def list_files():
-    """Devolver la lista de archivos subidos."""
-    files = os.listdir(UPLOAD_FOLDER)
-    return jsonify(files)
+def save_file(file, user_id):
+    if file:
+        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(file_path)
 
-def notify_users(connections, filename):
-    """Notificar a los usuarios sobre un nuevo archivo."""
-    for user_id in connections.keys():
-        connections[user_id]['pending_files'].append(filename)
+        # Agregar la solicitud de envío de archivo a la lista de solicitudes pendientes
+        if user_id not in pending_requests:
+            pending_requests[user_id] = []
+        pending_requests[user_id].append(file.filename)
 
-def get_pending_requests(user_id, pending_requests):
-    """Obtener solicitudes pendientes para un usuario específico."""
-    return {filename: user_id for user, filename in pending_requests.items() if user == user_id}
+def get_uploaded_files():
+    return os.listdir(UPLOAD_FOLDER)
+
+def get_pending_requests(user_id):
+    return pending_requests.get(user_id, {})
+
+def accept_file(filename, user_id):
+    if user_id in pending_requests:
+        if filename in pending_requests[user_id]:
+            pending_requests[user_id].remove(filename)
+            return True
+    return False
