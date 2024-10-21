@@ -1,5 +1,6 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_socketio import SocketIO
 from file_handler import (
     save_file,
     get_uploaded_files,
@@ -9,33 +10,34 @@ from file_handler import (
     disconnect_user,
     get_connected_users
 )
+import os
 
 app = Flask(__name__)
-CORS(app)  # Permitir CORS
+CORS(app)
+socketio = SocketIO(app)
 
-# Ruta para conectar un usuario
+UPLOAD_FOLDER = 'uploads'
+
 @app.route('/connect', methods=['POST'])
 def connect_user_route():
     data = request.get_json()
     user_id = data.get('user_id')
+
+    if user_id in get_connected_users():
+        return jsonify({'message': 'Ya existe un usuario con ese ID conectado.'}), 400
+
     connect_user(user_id)
+    socketio.emit('update_users', get_connected_users())  # Emitir la actualización de usuarios
     return jsonify({'message': f'Usuario {user_id} conectado exitosamente.'})
 
-# Ruta para desconectar un usuario (opcional)
 @app.route('/disconnect', methods=['POST'])
 def disconnect_user_route():
     data = request.get_json()
     user_id = data.get('user_id')
     disconnect_user(user_id)
+    socketio.emit('update_users', get_connected_users())  # Emitir la actualización de usuarios
     return jsonify({'message': f'Usuario {user_id} desconectado exitosamente.'})
 
-# Ruta para obtener usuarios conectados
-@app.route('/connected-users', methods=['GET'])
-def connected_users_route():
-    users = get_connected_users()
-    return jsonify(users)
-
-# Ruta para subir un archivo
 @app.route('/upload', methods=['POST'])
 def upload_file():
     user_id = request.form['user_id']
@@ -44,23 +46,24 @@ def upload_file():
 
     file = request.files['file']
     save_file(file, user_id)
-
+    socketio.emit('update_files', get_uploaded_files())  # Emitir la actualización de archivos
     return jsonify({'message': f'Archivo {file.filename} subido exitosamente.'})
 
-# Ruta para obtener archivos subidos
 @app.route('/files', methods=['GET'])
 def files():
     uploaded_files = get_uploaded_files()
     return jsonify(uploaded_files)
 
-# Ruta para obtener solicitudes pendientes
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
+
 @app.route('/pending-requests', methods=['GET'])
 def pending_requests_route():
     user_id = request.args.get('user_id')
     requests = get_pending_requests(user_id)
     return jsonify(requests)
 
-# Ruta para aceptar un archivo
 @app.route('/accept', methods=['POST'])
 def accept_route():
     data = request.get_json()
@@ -72,5 +75,13 @@ def accept_route():
     else:
         return jsonify({'message': 'Error al aceptar el archivo.'}), 400
 
+@socketio.on('connect')
+def handle_connect():
+    print("Cliente conectado")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print("Cliente desconectado")
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=5000)
