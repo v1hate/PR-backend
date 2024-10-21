@@ -2,11 +2,11 @@
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
-from file_handler import save_file  # Importa la función save_file
+from file_handler import save_file  
 import os
 
 app = Flask(__name__)
-CORS(app, resources={r"*": {"origins": "https://prvicmaga.netlify.app/"}})
+CORS(app)
 socketio = SocketIO(app)
 
 connected_users = {}
@@ -15,9 +15,12 @@ connected_users = {}
 def upload_file():
     file = request.files['file']
     user_id = request.form['user_id']
-    filename = save_file(file)  # Usa la función save_file
+    filename = save_file(file)
+    
+    # Emitir evento a todos los usuarios sobre la carga del archivo
     socketio.emit('file_uploaded', {'filename': filename, 'user_id': user_id})
-    return {'status': 'success'}
+    
+    return {'status': 'success', 'filename': filename}
 
 @socketio.on('connect')
 def handle_connect():
